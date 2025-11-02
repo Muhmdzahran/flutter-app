@@ -17,7 +17,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
 class WebViewPage extends StatefulWidget {
   const WebViewPage({super.key});
 
