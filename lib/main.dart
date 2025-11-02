@@ -23,7 +23,7 @@ class _WebViewTestState extends State<WebViewTest> {
     super.initState();
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadRequest(Uri.parse('https://flutter.dev')); // <== simple safe URL
+      ..loadRequest(Uri.parse('https://flutter.dev'));
   }
 
   @override
