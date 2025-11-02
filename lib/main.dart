@@ -2,68 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(const MaterialApp(
+    debugShowCheckedModeBanner: false,
+    home: SafeArea(child: WebViewTest()),
+  ));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class WebViewTest extends StatefulWidget {
+  const WebViewTest({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: WebViewPage(),
-    );
-  }
-}
-class WebViewPage extends StatefulWidget {
-  const WebViewPage({super.key});
-
-  @override
-  State<WebViewPage> createState() => _WebViewPageState();
+  State<WebViewTest> createState() => _WebViewTestState();
 }
 
-class _WebViewPageState extends State<WebViewPage> {
-  late final WebViewController _controller;
+class _WebViewTestState extends State<WebViewTest> {
+  late final WebViewController controller;
 
   @override
   void initState() {
     super.initState();
-
-    // ✅ Step 1: Create the controller first
-    final controller = WebViewController();
-
-    // ✅ Step 2: Configure its behavior
-    controller
+    controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0x00000000))
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (url) async {
-            // ✅ Try to autoplay video when the page finishes loading
-            await controller.runJavaScript("""
-              const v = document.querySelector('video');
-              if (v) {
-                v.muted = true; // ensure muted for autoplay policy
-                v.play().catch(e => console.log('Autoplay blocked:', e));
-                if (v.paused) v.controls = true; // fallback: show controls
-              }
-            """);
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse('https://nfctapit.uk'));
-
-    _controller = controller; // ✅ Finally assign it
+      ..loadRequest(Uri.parse('https://flutter.dev')); // <== simple safe URL
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: WebViewWidget(controller: _controller),
-      ),
+      backgroundColor: Colors.white,
+      body: WebViewWidget(controller: controller),
     );
   }
 }
