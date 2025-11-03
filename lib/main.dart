@@ -4,6 +4,27 @@ import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
+void main() {
+  runApp(const TapItApp());
+}
+
+class TapItApp extends StatelessWidget {
+  const TapItApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'TapIt',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        useMaterial3: true,
+      ),
+      home: const QiblaCompass(),
+    );
+  }
+}
+
 class QiblaCompass extends StatefulWidget {
   const QiblaCompass({super.key});
 
@@ -20,7 +41,7 @@ class _QiblaCompassState extends State<QiblaCompass> {
   void initState() {
     super.initState();
     _getLocation();
-    FlutterCompass.events!.listen((event) {
+    FlutterCompass.events?.listen((event) {
       setState(() => _heading = event.heading);
     });
   }
@@ -70,7 +91,7 @@ class _QiblaCompassState extends State<QiblaCompass> {
                     angle: vm.radians(qiblaAngle),
                     child: Image.asset('assets/compass.png', width: 250),
                   ),
-                  // 🕋 The Kaaba direction arrow
+                  // 🕋 Kaaba arrow
                   Image.asset('assets/kaaba_arrow.png', width: 80),
                   const Positioned(
                     bottom: 50,
