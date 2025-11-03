@@ -1,18 +1,68 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_compass/flutter_compass.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:vector_math/vector_math.dart' as vm;
 import 'package:webview_flutter/webview_flutter.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const TapItApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class TapItApp extends StatelessWidget {
+  const TapItApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      title: 'TapIt',
       debugShowCheckedModeBanner: false,
-      home: WebViewPage(),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        useMaterial3: true,
+      ),
+      home: const HomeNavigation(),
+    );
+  }
+}
+
+class HomeNavigation extends StatefulWidget {
+  const HomeNavigation({super.key});
+
+  @override
+  State<HomeNavigation> createState() => _HomeNavigationState();
+}
+
+class _HomeNavigationState extends State<HomeNavigation> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = [
+    const WebViewPage(),
+    const QiblaCompass(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.teal,
+        unselectedItemColor: Colors.grey,
+        onTap: (index) {
+          setState(() => _selectedIndex = index);
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.public),
+            label: 'Website',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.explore),
+            label: 'Qibla',
+          ),
+        ],
+      ),
     );
   }
 }
@@ -26,38 +76,89 @@ class WebViewPage extends StatefulWidget {
 
 class _WebViewPageState extends State<WebViewPage> {
   late final WebViewController _controller;
-  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-
-    _controller = WebViewController()
+    final controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFFFFFFFF))
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageFinished: (url) {
-            setState(() {
-              _isLoading = false;
-            });
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse('https://nfctapit.uk/cardinfo?id=7&tk=QHkHVArI8T'));
+      ..setBackgroundColor(const Color(0x00000000))
+      ..loadRequest(Uri.parse('https://nfctapit.uk'));
+    _controller = controller;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          WebViewWidget(controller: _controller),
-          if (_isLoading)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
-        ],
+      body: SafeArea(child: WebViewWidget(controller: _controller)),
+    );
+  }
+}
+
+// QIBLA COMPASS PAGE
+class QiblaCompass extends StatefulWidget {
+  const QiblaCompass({super.key});
+
+  @override
+  State<QiblaCompass> createState() => _QiblaCompassState();
+}
+
+class _QiblaCompassState extends State<QiblaCompass> {
+  double? _heading;
+  double? _qiblaDirection;
+  Position? _position;
+
+  @override
+  void initState() {
+    super.initState();
+    _getLocation();
+    FlutterCompass.events!.listen((event) {
+      setState(() => _heading = event.heading);
+    });
+  }
+
+  Future<void> _getLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
+    LocationPermission permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) return;
+    _position = await Geolocator.getCurrentPosition();
+    _calculateQiblaDirection();
+  }
+
+  void _calculateQiblaDirection() {
+    const kaabaLat = 21.4225;
+    const kaabaLon = 39.8262;
+
+    final userLat = _position!.latitude;
+    final userLon = _position!.longitude;
+
+    final userLatRad = vm.radians(userLat);
+    final userLonRad = vm.radians(userLon);
+    final kaabaLatRad = vm.radians(kaabaLat);
+    final kaabaLonRad = vm.radians(kaabaLon);
+
+    final deltaLon = kaabaLonRad - userLonRad;
+
+    final y = sin(deltaLon);
+    final x = cos(userLatRad) * tan(kaabaLatRad) - sin(userLatRad) * cos(deltaLon);
+    final bearing = (vm.degrees(atan2(y, x)) + 360) % 360;
+
+    setState(() => _qiblaDirection = bearing);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final qiblaAngle = (_qiblaDirection ?? 0) - (_heading ?? 0);
+    return Scaffold(
+      appBar: AppBar(title: const Text("Qibla Compass")),
+      body: Center(
+        child: _heading == null || _qiblaDirection == null
+            ? const CircularProgressIndicator()
+            : Transform.rotate(
+                angle: vm.radians(qiblaAngle),
+                child: Image.asset('assets/compass.png', width: 250),
+              ),
       ),
     );
   }

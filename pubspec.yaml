@@ -31,6 +31,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  geolocator: ^13.0.1
+  flutter_compass: ^0.8.0
+  vector_math: ^2.1.4
+
 
   webview_flutter: ^4.13.0
   webview_flutter_wkwebview: ^3.23.2
