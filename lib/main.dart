@@ -3,7 +3,99 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:vector_math/vector_math.dart' as vm;
+import 'package:webview_flutter/webview_flutter.dart';
 
+void main() {
+  runApp(const TapItApp());
+}
+
+class TapItApp extends StatelessWidget {
+  const TapItApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'TapIt',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
+        useMaterial3: true,
+      ),
+      home: const HomeNavigation(),
+    );
+  }
+}
+
+class HomeNavigation extends StatefulWidget {
+  const HomeNavigation({super.key});
+
+  @override
+  State<HomeNavigation> createState() => _HomeNavigationState();
+}
+
+class _HomeNavigationState extends State<HomeNavigation> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = [
+    const WebViewPage(),
+    const QiblaCompass(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.teal,
+        unselectedItemColor: Colors.grey,
+        onTap: (index) {
+          setState(() => _selectedIndex = index);
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.public),
+            label: 'Website',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.explore),
+            label: 'Qibla',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class WebViewPage extends StatefulWidget {
+  const WebViewPage({super.key});
+
+  @override
+  State<WebViewPage> createState() => _WebViewPageState();
+}
+
+class _WebViewPageState extends State<WebViewPage> {
+  late final WebViewController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0x00000000))
+      ..loadRequest(Uri.parse('https://nfctapit.uk'));
+    _controller = controller;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(child: WebViewWidget(controller: _controller)),
+    );
+  }
+}
+
+// 🕋 QIBLA COMPASS PAGE
 class QiblaCompass extends StatefulWidget {
   const QiblaCompass({super.key});
 
@@ -71,25 +163,18 @@ class _QiblaCompassState extends State<QiblaCompass> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // 🌍 Compass display
                   Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Rotating compass background
                       Transform.rotate(
                         angle: vm.radians(qiblaAngle),
                         child: Image.asset('assets/compass.png', width: 250),
                       ),
-
-                      // Fixed Kaaba arrow (overlay)
                       Image.asset('assets/kaaba_arrow.png',
                           width: 80, height: 80),
                     ],
                   ),
-
                   const SizedBox(height: 40),
-
-                  // Text below the compass
                   const Text(
                     "🕋 Face this direction for the Kaaba",
                     textAlign: TextAlign.center,
