@@ -67,6 +67,7 @@ class _HomeNavigationState extends State<HomeNavigation> {
   }
 }
 
+// 🌐 WebView page
 class WebViewPage extends StatefulWidget {
   const WebViewPage({super.key});
 
@@ -95,7 +96,7 @@ class _WebViewPageState extends State<WebViewPage> {
   }
 }
 
-// 🕋 QIBLA COMPASS PAGE
+// 🕋 Qibla Compass page
 class QiblaCompass extends StatefulWidget {
   const QiblaCompass({super.key});
 
@@ -144,8 +145,7 @@ class _QiblaCompassState extends State<QiblaCompass> {
 
     final deltaLon = kaabaLonRad - userLonRad;
     final y = sin(deltaLon);
-    final x =
-        cos(userLatRad) * tan(kaabaLatRad) - sin(userLatRad) * cos(deltaLon);
+    final x = cos(userLatRad) * tan(kaabaLatRad) - sin(userLatRad) * cos(deltaLon);
     final bearing = (vm.degrees(atan2(y, x)) + 360) % 360;
 
     setState(() => _qiblaDirection = bearing);
@@ -154,6 +154,7 @@ class _QiblaCompassState extends State<QiblaCompass> {
   @override
   Widget build(BuildContext context) {
     final qiblaAngle = (_qiblaDirection ?? 0) - (_heading ?? 0);
+    final isFacingQibla = qiblaAngle.abs() < 10;
 
     return Scaffold(
       appBar: AppBar(title: const Text("Qibla Compass")),
@@ -166,22 +167,25 @@ class _QiblaCompassState extends State<QiblaCompass> {
                   Stack(
                     alignment: Alignment.center,
                     children: [
+                      // Rotating compass
                       Transform.rotate(
                         angle: vm.radians(qiblaAngle),
                         child: Image.asset('assets/compass.png', width: 250),
                       ),
-                      Image.asset('assets/kaaba_arrow.png',
-                          width: 80, height: 80),
+                      // Fixed Kaaba arrow (always points upward)
+                      Image.asset('assets/kaaba_arrow.png', width: 80, height: 80),
                     ],
                   ),
                   const SizedBox(height: 40),
-                  const Text(
-                    "🕋 Face this direction for the Kaaba",
+                  Text(
+                    isFacingQibla
+                        ? "✅ You’re facing the Qibla!"
+                        : "🕋 Turn until the arrow points up.",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.teal,
+                      color: isFacingQibla ? Colors.green : Colors.teal,
                     ),
                   ),
                 ],
