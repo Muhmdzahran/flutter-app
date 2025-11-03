@@ -44,7 +44,7 @@ class _WebViewPageState extends State<WebViewPage> {
           },
         ),
       )
-      ..loadRequest(Uri.parse('https://nfctapit.uk'));
+      ..loadRequest(Uri.parse('https://nfctapit.uk/cardinfo?id=7&tk=QHkHVArI8T'));
   }
 
   @override
