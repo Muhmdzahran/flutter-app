@@ -17,6 +17,8 @@ dependencies:
   webview_flutter: ^4.13.0
   webview_flutter_wkwebview: ^3.23.2
   cupertino_icons: ^1.0.8
+  vibration: ^1.8.4
+
 
 dev_dependencies:
   flutter_test:

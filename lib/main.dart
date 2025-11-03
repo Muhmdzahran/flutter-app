@@ -4,6 +4,7 @@ import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:vibration/vibration.dart';
 
 void main() {
   runApp(const TapItApp());
@@ -49,9 +50,7 @@ class _HomeNavigationState extends State<HomeNavigation> {
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.teal,
         unselectedItemColor: Colors.grey,
-        onTap: (index) {
-          setState(() => _selectedIndex = index);
-        },
+        onTap: (index) => setState(() => _selectedIndex = index),
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.public),
@@ -67,7 +66,7 @@ class _HomeNavigationState extends State<HomeNavigation> {
   }
 }
 
-// 🌐 WebView page
+// 🌐 WebView Page
 class WebViewPage extends StatefulWidget {
   const WebViewPage({super.key});
 
@@ -81,11 +80,10 @@ class _WebViewPageState extends State<WebViewPage> {
   @override
   void initState() {
     super.initState();
-    final controller = WebViewController()
+    _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0x00000000))
       ..loadRequest(Uri.parse('https://nfctapit.uk'));
-    _controller = controller;
   }
 
   @override
@@ -96,7 +94,7 @@ class _WebViewPageState extends State<WebViewPage> {
   }
 }
 
-// 🕋 Qibla Compass page
+// 🕋 Qibla Compass
 class QiblaCompass extends StatefulWidget {
   const QiblaCompass({super.key});
 
@@ -108,6 +106,7 @@ class _QiblaCompassState extends State<QiblaCompass> {
   double? _heading;
   double? _qiblaDirection;
   Position? _position;
+  bool _hasVibrated = false; // Prevent continuous vibration
 
   @override
   void initState() {
@@ -123,6 +122,7 @@ class _QiblaCompassState extends State<QiblaCompass> {
   Future<void> _getLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
+
     LocationPermission permission = await Geolocator.requestPermission();
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) return;
@@ -145,7 +145,8 @@ class _QiblaCompassState extends State<QiblaCompass> {
 
     final deltaLon = kaabaLonRad - userLonRad;
     final y = sin(deltaLon);
-    final x = cos(userLatRad) * tan(kaabaLatRad) - sin(userLatRad) * cos(deltaLon);
+    final x =
+        cos(userLatRad) * tan(kaabaLatRad) - sin(userLatRad) * cos(deltaLon);
     final bearing = (vm.degrees(atan2(y, x)) + 360) % 360;
 
     setState(() => _qiblaDirection = bearing);
@@ -154,7 +155,16 @@ class _QiblaCompassState extends State<QiblaCompass> {
   @override
   Widget build(BuildContext context) {
     final qiblaAngle = (_qiblaDirection ?? 0) - (_heading ?? 0);
-    final isFacingQibla = qiblaAngle.abs() < 10;
+    final normalizedAngle = (qiblaAngle + 360) % 360;
+    final isFacingQibla = normalizedAngle.abs() < 5 || normalizedAngle > 355;
+
+    // 🔔 Vibrate once when aligned
+    if (isFacingQibla && !_hasVibrated) {
+      Vibration.vibrate(duration: 300);
+      _hasVibrated = true;
+    } else if (!isFacingQibla) {
+      _hasVibrated = false;
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text("Qibla Compass")),
@@ -169,24 +179,30 @@ class _QiblaCompassState extends State<QiblaCompass> {
                     children: [
                       // Rotating compass
                       Transform.rotate(
-                        angle: vm.radians(qiblaAngle),
+                        angle: vm.radians(normalizedAngle),
                         child: Image.asset('assets/compass.png', width: 250),
                       ),
-                      // Fixed Kaaba arrow (always points upward)
-                      Image.asset('assets/kaaba_arrow.png', width: 80, height: 80),
+                      // Fixed Kaaba arrow
+                      Image.asset('assets/kaaba_arrow.png',
+                          width: 80, height: 80),
                     ],
                   ),
                   const SizedBox(height: 40),
                   Text(
                     isFacingQibla
-                        ? "✅ You’re facing the Qibla!"
-                        : "🕋 Turn until the arrow points up.",
+                        ? "✅ You’re precisely facing the Qibla!"
+                        : "🕋 Rotate your phone slowly...",
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: isFacingQibla ? Colors.green : Colors.teal,
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "Angle to Qibla: ${normalizedAngle.toStringAsFixed(1)}°",
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                 ],
               ),
