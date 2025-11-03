@@ -4,27 +4,6 @@ import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
-void main() {
-  runApp(const TapItApp());
-}
-
-class TapItApp extends StatelessWidget {
-  const TapItApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'TapIt',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-        useMaterial3: true,
-      ),
-      home: const QiblaCompass(),
-    );
-  }
-}
-
 class QiblaCompass extends StatefulWidget {
   const QiblaCompass({super.key});
 
@@ -41,8 +20,10 @@ class _QiblaCompassState extends State<QiblaCompass> {
   void initState() {
     super.initState();
     _getLocation();
-    FlutterCompass.events?.listen((event) {
-      setState(() => _heading = event.heading);
+    FlutterCompass.events!.listen((event) {
+      if (event.heading != null) {
+        setState(() => _heading = event.heading);
+      }
     });
   }
 
@@ -50,7 +31,9 @@ class _QiblaCompassState extends State<QiblaCompass> {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
     LocationPermission permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) return;
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) return;
+
     _position = await Geolocator.getCurrentPosition();
     _calculateQiblaDirection();
   }
@@ -68,9 +51,9 @@ class _QiblaCompassState extends State<QiblaCompass> {
     final kaabaLonRad = vm.radians(kaabaLon);
 
     final deltaLon = kaabaLonRad - userLonRad;
-
     final y = sin(deltaLon);
-    final x = cos(userLatRad) * tan(kaabaLatRad) - sin(userLatRad) * cos(deltaLon);
+    final x =
+        cos(userLatRad) * tan(kaabaLatRad) - sin(userLatRad) * cos(deltaLon);
     final bearing = (vm.degrees(atan2(y, x)) + 360) % 360;
 
     setState(() => _qiblaDirection = bearing);
@@ -79,25 +62,41 @@ class _QiblaCompassState extends State<QiblaCompass> {
   @override
   Widget build(BuildContext context) {
     final qiblaAngle = (_qiblaDirection ?? 0) - (_heading ?? 0);
+
     return Scaffold(
       appBar: AppBar(title: const Text("Qibla Compass")),
       body: Center(
         child: _heading == null || _qiblaDirection == null
             ? const CircularProgressIndicator()
-            : Stack(
-                alignment: Alignment.center,
+            : Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Transform.rotate(
-                    angle: vm.radians(qiblaAngle),
-                    child: Image.asset('assets/compass.png', width: 250),
+                  // 🌍 Compass display
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Rotating compass background
+                      Transform.rotate(
+                        angle: vm.radians(qiblaAngle),
+                        child: Image.asset('assets/compass.png', width: 250),
+                      ),
+
+                      // Fixed Kaaba arrow (overlay)
+                      Image.asset('assets/kaaba_arrow.png',
+                          width: 80, height: 80),
+                    ],
                   ),
-                  // 🕋 Kaaba arrow
-                  Image.asset('assets/kaaba_arrow.png', width: 80),
-                  const Positioned(
-                    bottom: 50,
-                    child: Text(
-                      "🕋 Face this direction for the Kaaba",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+
+                  const SizedBox(height: 40),
+
+                  // Text below the compass
+                  const Text(
+                    "🕋 Face this direction for the Kaaba",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal,
                     ),
                   ),
                 ],
