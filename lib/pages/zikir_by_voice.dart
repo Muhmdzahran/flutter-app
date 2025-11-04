@@ -24,15 +24,29 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
     _stt = stt.SpeechToText();
     final ok = await _stt.initialize(
       onError: (e) => debugPrint('Speech error: $e'),
-      onStatus: (s) => setState(() => _listening = (s == 'listening')),
+      onStatus: (s) {
+        debugPrint('STT status: $s');
+        if (s == 'notListening' && _listening) {
+          // 🔁 Restart automatically when speech pauses
+          _restartListening();
+        }
+      },
     );
     setState(() => _available = ok);
+  }
+
+  Future<void> _restartListening() async {
+    if (!_listening) return;
+    debugPrint('Restarting listening...');
+    await _stt.stop();
+    await Future.delayed(const Duration(milliseconds: 300));
+    await _startListening();
   }
 
   Future<void> _startListening() async {
     if (!_available) return;
 
-    // Try to select Arabic locale
+    // Arabic locales preferred
     const arLocales = ['ar-QA', 'ar-SA', 'ar', 'ar-AE', 'ar-EG', 'ar-LB'];
     String? chosen;
     final locales = await _stt.locales();
@@ -43,14 +57,17 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
       }
     }
 
-    setState(() => _spokenText = '');
+    setState(() {
+      _spokenText = '';
+      _listening = true;
+    });
 
     await _stt.listen(
       localeId: chosen,
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(minutes: 2),
+      listenFor: const Duration(seconds: 30),
       pauseFor: const Duration(seconds: 5),
       onResult: (res) {
         setState(() => _spokenText = res.recognizedWords.trim());
@@ -59,8 +76,8 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   }
 
   Future<void> _stopListening() async {
-    await _stt.stop();
     setState(() => _listening = false);
+    await _stt.stop();
   }
 
   @override
@@ -72,7 +89,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('الذكر بالصوت (تجربة)')),
+      appBar: AppBar(title: const Text('الذكر بالصوت (مستمر)')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -99,8 +116,8 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
             const SizedBox(height: 20),
             Text(
               _available
-                  ? (_listening ? '🎧 يستمع الآن...' : '✅ جاهز للاستماع')
-                  : '⚠️ التعرف على الكلام غير متاح',
+                  ? (_listening ? '🎧 يستمع الآن بشكل مستمر...' : '✅ جاهز للاستماع')
+                  : '⚠️ التعرّف على الكلام غير متاح على هذا الجهاز',
               style: const TextStyle(color: Colors.teal),
             ),
             const SizedBox(height: 20),
@@ -114,7 +131,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
                 ),
                 child: SingleChildScrollView(
                   child: Text(
-                    _spokenText.isEmpty ? 'قل شيئًا...' : _spokenText,
+                    _spokenText.isEmpty ? 'ابدأ وتحدث...' : _spokenText,
                     textDirection: TextDirection.rtl,
                     style: const TextStyle(fontSize: 18),
                   ),
