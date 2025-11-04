@@ -67,5 +67,8 @@
 	<!-- 🧩 Required for Flutter WebView -->
 	<key>io.flutter.embedded_views_preview</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We use your microphone for Arabic voice dhikr counting.</string>
+
 </dict>
 </plist>
