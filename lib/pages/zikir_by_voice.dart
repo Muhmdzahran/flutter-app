@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:vibration/vibration.dart';
@@ -15,14 +14,10 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   bool _available = false;
   bool _listening = false;
 
-  // Selected phrase to count
   String _selected = 'سبحان الله';
-
-  // Running transcript & counts
   String _lastHeard = '';
   int _count = 0;
 
-  // Supported phrases
   static const List<String> _phrases = [
     'سبحان الله',
     'الحمد لله',
@@ -31,57 +26,26 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
     'أستغفر الله',
   ];
 
-  // Simple normalizer: remove tatweel & common diacritics
-  String _normalize(String s) {
-    const diacritics = [
-      '\u064B', // tanween fath
-      '\u064C', // tanween damm
-      '\u064D', // tanween kasr
-      '\u064E', // fatha
-      '\u064F', // damma
-      '\u0650', // kasra
-      '\u0651', // shadda
-      '\u0652', // sukun
-      '\u0640', // tatweel
-    ];
-    var out = s;
-    for (final d in diacritics) {
-      out = out.replaceAll(d, '');
-    }
-    return out.trim();
-  }
-
-  int _countOccurrences(String haystack, String needle) {
-    // Count whole-phrase occurrences (normalized)
-    final h = _normalize(haystack);
-    final n = _normalize(needle);
-    if (h.isEmpty || n.isEmpty) return 0;
-
-    // Split to tokens by whitespace and re-join with sentinel to avoid overlaps
-    // For Arabic phrases it’s usually exact phrase match:
-    int count = 0;
-    int index = 0;
-    while (true) {
-      final found = h.indexOf(n, index);
-      if (found == -1) break;
-      count++;
-      index = found + n.length;
-    }
-    return count;
-  }
-
   Future<void> _initStt() async {
     _stt = stt.SpeechToText();
     final avail = await _stt.initialize(
-      onStatus: (s) => setState(() => _listening = s == 'listening'),
-      onError: (e) => debugPrint('STT error: $e'),
+      onError: (e) => debugPrint('SpeechToText error: $e'),
+      onStatus: (status) {
+        debugPrint('Status: $status');
+      },
     );
     setState(() => _available = avail);
   }
 
   Future<void> _startListening() async {
     if (!_available) return;
-    // Arabic locale; fallback to device default if unavailable
+
+    setState(() {
+      _count = 0;
+      _lastHeard = '';
+      _listening = true;
+    });
+
     const arabicLocales = ['ar-QA', 'ar-SA', 'ar', 'ar-AE', 'ar-EG', 'ar-LB'];
     String? chosen;
     final locales = await _stt.locales();
@@ -92,31 +56,26 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
       }
     }
 
-    _lastHeard = '';
-    _count = 0;
-    setState(() {});
-
     await _stt.listen(
-      localeId: chosen,            // null -> device default
+      localeId: chosen,
       listenMode: stt.ListenMode.dictation,
+      partialResults: true,
+      cancelOnError: false,
+      listenFor: const Duration(hours: 1), // 🕐 1-hour continuous session
+      pauseFor: const Duration(seconds: 30), // Long silence tolerance
       onResult: (res) async {
-        final txt = res.recognizedWords;
+        final txt = res.recognizedWords.trim();
         if (txt.isEmpty) return;
         setState(() => _lastHeard = txt);
 
-        final added = _countOccurrences(txt, _selected);
-        if (added > 0) {
-          setState(() => _count += added);
+        // Count if the selected phrase appears in the transcript
+        if (txt.contains(_selected)) {
+          setState(() => _count++);
           if (await Vibration.hasVibrator() ?? false) {
-            Vibration.vibrate(duration: 60);
+            Vibration.vibrate(duration: 40);
           }
         }
       },
-      partialResults: true,
-      cancelOnError: false,
-      listenFor: const Duration(minutes: 2), // long session; restart as needed
-      pauseFor: const Duration(seconds: 4),
-      onSoundLevelChange: null,
     );
   }
 
@@ -142,14 +101,13 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
     final canListen = _available && !_listening;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الذكر بالصوت (Offline-capable on Android/iOS)'),
+        title: const Text('الذكر بالصوت'),
         centerTitle: true,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Phrase picker
             Row(
               children: [
                 const Text('اختر الذكر:', style: TextStyle(fontSize: 16)),
@@ -162,7 +120,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
                         .toList(),
                     onChanged: (v) => setState(() {
                       _selected = v ?? _selected;
-                      _count = 0; // reset when changing
+                      _count = 0;
                     }),
                   ),
                 ),
@@ -170,14 +128,13 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
             ),
             const SizedBox(height: 20),
 
-            // Counter
             Card(
               elevation: 2,
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
                   children: [
-                    const Text('العدد', style: TextStyle(fontSize: 18)),
+                    const Text('العدد الحالي', style: TextStyle(fontSize: 18)),
                     Text('$_count',
                         style: const TextStyle(
                             fontSize: 40, fontWeight: FontWeight.bold)),
@@ -191,7 +148,6 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
             ),
             const Spacer(),
 
-            // Controls
             Row(
               children: [
                 Expanded(
@@ -214,8 +170,8 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
             const SizedBox(height: 8),
             Text(
               _available
-                  ? (_listening ? 'يستمع الآن...' : 'جاهز للاستماع')
-                  : 'التعرّف على الكلام غير متاح على هذا الجهاز',
+                  ? (_listening ? '🎧 يستمع الآن بشكل مستمر...' : '✅ جاهز للاستماع')
+                  : '⚠️ التعرّف على الكلام غير متاح على هذا الجهاز',
               style: const TextStyle(color: Colors.teal),
             ),
           ],
