@@ -45,7 +45,7 @@ class _HomeNavigationState extends State<HomeNavigation> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
+            bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.teal,
         unselectedItemColor: Colors.grey,
@@ -59,8 +59,13 @@ class _HomeNavigationState extends State<HomeNavigation> {
             icon: Icon(Icons.explore),
             label: 'Qibla',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.mic),
+            label: 'Zikir by Voice',
+          ),
         ],
       ),
+
     );
   }
 }
