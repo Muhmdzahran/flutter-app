@@ -43,9 +43,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
     _stt = stt.SpeechToText();
     final avail = await _stt.initialize(
       onError: (e) => debugPrint('SpeechToText error: $e'),
-      onStatus: (status) {
-        debugPrint('Status: $status');
-      },
+      onStatus: (status) => debugPrint('Status: $status'),
     );
     setState(() => _available = avail);
   }
@@ -74,20 +72,18 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(hours: 1), // 🕐 1-hour continuous session
-      pauseFor: const Duration(seconds: 30), // Long silence tolerance
-
+      listenFor: const Duration(hours: 1),
+      pauseFor: const Duration(seconds: 30),
       onResult: (res) async {
         final txt = res.recognizedWords.trim();
-        if (txt.isEmpty) return;
+        if (txt.isEmpty || txt == _lastHeard) return; // 🧩 ignore repeated partials
 
-        // 🧠 احفظ النص الكامل الحالي (آخر ما سمعه)
+        // 🧠 Append only new recognized text
         _lastHeard = (_lastHeard + ' ' + txt).trim();
 
-        // 🔍 احسب عدد مرات ظهور الذكر المختار في النص كله
+        // 🔍 Recalculate count (like Ctrl + F)
         final total = _countOccurrences(_lastHeard, _selected);
 
-        // ✅ اجعل العداد يساوي النتيجة الحالية فقط
         setState(() => _count = total);
 
         if (total > 0 && (await Vibration.hasVibrator() ?? false)) {
@@ -192,8 +188,8 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
             Text(
               _available
                   ? (_listening
-                        ? '🎧 يستمع الآن بشكل مستمر...'
-                        : '✅ جاهز للاستماع')
+                      ? '🎧 يستمع الآن بشكل مستمر...'
+                      : '✅ جاهز للاستماع')
                   : '⚠️ التعرّف على الكلام غير متاح على هذا الجهاز',
               style: const TextStyle(color: Colors.teal),
             ),
