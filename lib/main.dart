@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'pages/tasbih_page.dart';
 import 'pages/qibla_compass.dart';
+import 'pages/zikir_by_voice.dart';
 
 void main() {
   runApp(const TapItApp());
@@ -37,6 +38,7 @@ class _HomeNavigationState extends State<HomeNavigation> {
   final List<Widget> _pages = [
     const TasbihPage(),
     const QiblaCompass(),
+    const ZikirByVoicePage(), 
   ];
 
   @override
