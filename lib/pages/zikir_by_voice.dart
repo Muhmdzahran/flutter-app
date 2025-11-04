@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:vibration/vibration.dart';
 
 class ZikirByVoicePage extends StatefulWidget {
   const ZikirByVoicePage({super.key});
@@ -13,82 +12,48 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   late stt.SpeechToText _stt;
   bool _available = false;
   bool _listening = false;
+  String _spokenText = '';
 
-  String _selected = 'سبحان الله';
-  String _lastHeard = '';
-  int _count = 0;
-
-  int _countOccurrences(String text, String phrase) {
-    if (text.isEmpty || phrase.isEmpty) return 0;
-    int count = 0;
-    int index = 0;
-    while (true) {
-      index = text.indexOf(phrase, index);
-      if (index == -1) break;
-      count++;
-      index += phrase.length;
-    }
-    return count;
+  @override
+  void initState() {
+    super.initState();
+    _initStt();
   }
-
-  static const List<String> _phrases = [
-    'سبحان الله',
-    'الحمد لله',
-    'لا إله إلا الله',
-    'الله أكبر',
-    'أستغفر الله',
-  ];
 
   Future<void> _initStt() async {
     _stt = stt.SpeechToText();
-    final avail = await _stt.initialize(
-      onError: (e) => debugPrint('SpeechToText error: $e'),
-      onStatus: (status) => debugPrint('Status: $status'),
+    final ok = await _stt.initialize(
+      onError: (e) => debugPrint('Speech error: $e'),
+      onStatus: (s) => setState(() => _listening = (s == 'listening')),
     );
-    setState(() => _available = avail);
+    setState(() => _available = ok);
   }
 
   Future<void> _startListening() async {
     if (!_available) return;
 
-    setState(() {
-      _count = 0;
-      _lastHeard = '';
-      _listening = true;
-    });
-
-    const arabicLocales = ['ar-QA', 'ar-SA', 'ar', 'ar-AE', 'ar-EG', 'ar-LB'];
+    // Try to select Arabic locale
+    const arLocales = ['ar-QA', 'ar-SA', 'ar', 'ar-AE', 'ar-EG', 'ar-LB'];
     String? chosen;
     final locales = await _stt.locales();
     for (final l in locales) {
-      if (arabicLocales.contains(l.localeId)) {
+      if (arLocales.contains(l.localeId)) {
         chosen = l.localeId;
         break;
       }
     }
+
+    setState(() => _spokenText = '');
 
     await _stt.listen(
       localeId: chosen,
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(hours: 1),
-      pauseFor: const Duration(seconds: 30),
-      onResult: (res) async {
-        final txt = res.recognizedWords.trim();
-        if (txt.isEmpty || txt == _lastHeard) return; // 🧩 ignore repeated partials
-
-        // 🧠 Append only new recognized text
-        _lastHeard = (_lastHeard + ' ' + txt).trim();
-
-        // 🔍 Recalculate count (like Ctrl + F)
-        final total = _countOccurrences(_lastHeard, _selected);
-
-        setState(() => _count = total);
-
-        if (total > 0 && (await Vibration.hasVibrator() ?? false)) {
-          Vibration.vibrate(duration: 40);
-        }
+      listenFor: const Duration(minutes: 2),
+      pauseFor: const Duration(seconds: 5),
+      onResult: (res) {
+        setState(() => _spokenText = res.recognizedWords.trim());
       },
     );
   }
@@ -99,12 +64,6 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _initStt();
-  }
-
-  @override
   void dispose() {
     _stt.cancel();
     super.dispose();
@@ -112,86 +71,55 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
 
   @override
   Widget build(BuildContext context) {
-    final canListen = _available && !_listening;
     return Scaffold(
-      appBar: AppBar(title: const Text('الذكر بالصوت'), centerTitle: true),
+      appBar: AppBar(title: const Text('الذكر بالصوت (تجربة)')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Row(
               children: [
-                const Text('اختر الذكر:', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    value: _selected,
-                    items: _phrases
-                        .map((p) => DropdownMenuItem(value: p, child: Text(p)))
-                        .toList(),
-                    onChanged: (v) => setState(() {
-                      _selected = v ?? _selected;
-                      _count = 0;
-                    }),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            Card(
-              elevation: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    const Text('العدد الحالي', style: TextStyle(fontSize: 18)),
-                    Text(
-                      '$_count',
-                      style: const TextStyle(
-                        fontSize: 40,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'آخر مسموع: $_lastHeard',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const Spacer(),
-
-            Row(
-              children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.mic),
-                    onPressed: canListen ? _startListening : null,
-                    label: const Text('ابدأ الاستماع'),
+                    label: const Text('ابدأ'),
+                    onPressed: _available && !_listening ? _startListening : null,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
                     icon: const Icon(Icons.stop),
-                    onPressed: _listening ? _stopListening : null,
                     label: const Text('إيقاف'),
+                    onPressed: _listening ? _stopListening : null,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 20),
             Text(
               _available
-                  ? (_listening
-                      ? '🎧 يستمع الآن بشكل مستمر...'
-                      : '✅ جاهز للاستماع')
-                  : '⚠️ التعرّف على الكلام غير متاح على هذا الجهاز',
+                  ? (_listening ? '🎧 يستمع الآن...' : '✅ جاهز للاستماع')
+                  : '⚠️ التعرف على الكلام غير متاح',
               style: const TextStyle(color: Colors.teal),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: SingleChildScrollView(
+                  child: Text(
+                    _spokenText.isEmpty ? 'قل شيئًا...' : _spokenText,
+                    textDirection: TextDirection.rtl,
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
