@@ -18,6 +18,19 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   String _lastHeard = '';
   int _count = 0;
 
+  int _countOccurrences(String text, String phrase) {
+    if (text.isEmpty || phrase.isEmpty) return 0;
+    int count = 0;
+    int index = 0;
+    while (true) {
+      index = text.indexOf(phrase, index);
+      if (index == -1) break;
+      count++;
+      index += phrase.length;
+    }
+    return count;
+  }
+
   static const List<String> _phrases = [
     'سبحان الله',
     'الحمد لله',
@@ -25,24 +38,6 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
     'الله أكبر',
     'أستغفر الله',
   ];
-
-  /// 🧮 Count how many times the phrase appears in the full transcript
-  int _countOccurrences(String haystack, String needle) {
-    haystack = haystack.replaceAll(RegExp(r'\s+'), ' ').trim();
-    needle = needle.trim();
-
-    if (haystack.isEmpty || needle.isEmpty) return 0;
-
-    int count = 0;
-    int index = 0;
-    while (true) {
-      index = haystack.indexOf(needle, index);
-      if (index == -1) break;
-      count++;
-      index += needle.length;
-    }
-    return count;
-  }
 
   Future<void> _initStt() async {
     _stt = stt.SpeechToText();
@@ -79,18 +74,20 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(hours: 1), // 🕐 continuous long session
-      pauseFor: const Duration(seconds: 30),
+      listenFor: const Duration(hours: 1), // 🕐 1-hour continuous session
+      pauseFor: const Duration(seconds: 30), // Long silence tolerance
+
       onResult: (res) async {
         final txt = res.recognizedWords.trim();
         if (txt.isEmpty) return;
 
-        // 🧠 Keep appending full recognized text
-        _lastHeard = (_lastHeard + ' $txt').trim();
+        // 🧠 احفظ النص الكامل الحالي (آخر ما سمعه)
+        _lastHeard = (_lastHeard + ' ' + txt).trim();
 
-        // 🔍 Recalculate how many times the selected phrase appears
+        // 🔍 احسب عدد مرات ظهور الذكر المختار في النص كله
         final total = _countOccurrences(_lastHeard, _selected);
 
+        // ✅ اجعل العداد يساوي النتيجة الحالية فقط
         setState(() => _count = total);
 
         if (total > 0 && (await Vibration.hasVibrator() ?? false)) {
@@ -126,7 +123,6 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // 🔹 Dropdown for choosing dhikr phrase
             Row(
               children: [
                 const Text('اختر الذكر:', style: TextStyle(fontSize: 16)),
@@ -147,7 +143,6 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
             ),
             const SizedBox(height: 20),
 
-            // 🔹 Counter display
             Card(
               elevation: 2,
               child: Padding(
@@ -174,7 +169,6 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
             ),
             const Spacer(),
 
-            // 🔹 Start/Stop buttons
             Row(
               children: [
                 Expanded(
@@ -195,13 +189,11 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
               ],
             ),
             const SizedBox(height: 8),
-
-            // 🔹 Status text
             Text(
               _available
                   ? (_listening
-                      ? '🎧 يستمع الآن بشكل مستمر...'
-                      : '✅ جاهز للاستماع')
+                        ? '🎧 يستمع الآن بشكل مستمر...'
+                        : '✅ جاهز للاستماع')
                   : '⚠️ التعرّف على الكلام غير متاح على هذا الجهاز',
               style: const TextStyle(color: Colors.teal),
             ),
