@@ -8,6 +8,12 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Your location is used to determine the Qibla direction accurately.</string>
 
+	<!-- 🎙️ Voice Recognition & Microphone -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We use your microphone for Arabic voice dhikr counting.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>We use speech recognition to understand your Arabic dhikr phrases and count them automatically.</string>
+
 	<!-- 🔒 Network Access (WebView) -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
@@ -67,8 +73,5 @@
 	<!-- 🧩 Required for Flutter WebView -->
 	<key>io.flutter.embedded_views_preview</key>
 	<true/>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>We use your microphone for Arabic voice dhikr counting.</string>
-
 </dict>
 </plist>
