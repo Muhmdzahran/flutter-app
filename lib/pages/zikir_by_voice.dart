@@ -26,6 +26,24 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
     'أستغفر الله',
   ];
 
+  /// 🧮 Count how many times the phrase appears in the full transcript
+  int _countOccurrences(String haystack, String needle) {
+    haystack = haystack.replaceAll(RegExp(r'\s+'), ' ').trim();
+    needle = needle.trim();
+
+    if (haystack.isEmpty || needle.isEmpty) return 0;
+
+    int count = 0;
+    int index = 0;
+    while (true) {
+      index = haystack.indexOf(needle, index);
+      if (index == -1) break;
+      count++;
+      index += needle.length;
+    }
+    return count;
+  }
+
   Future<void> _initStt() async {
     _stt = stt.SpeechToText();
     final avail = await _stt.initialize(
@@ -61,19 +79,22 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
       listenMode: stt.ListenMode.dictation,
       partialResults: true,
       cancelOnError: false,
-      listenFor: const Duration(hours: 1), // 🕐 1-hour continuous session
-      pauseFor: const Duration(seconds: 30), // Long silence tolerance
+      listenFor: const Duration(hours: 1), // 🕐 continuous long session
+      pauseFor: const Duration(seconds: 30),
       onResult: (res) async {
         final txt = res.recognizedWords.trim();
         if (txt.isEmpty) return;
-        setState(() => _lastHeard = txt);
 
-        // Count if the selected phrase appears in the transcript
-        if (txt.contains(_selected)) {
-          setState(() => _count++);
-          if (await Vibration.hasVibrator() ?? false) {
-            Vibration.vibrate(duration: 40);
-          }
+        // 🧠 Keep appending full recognized text
+        _lastHeard = (_lastHeard + ' $txt').trim();
+
+        // 🔍 Recalculate how many times the selected phrase appears
+        final total = _countOccurrences(_lastHeard, _selected);
+
+        setState(() => _count = total);
+
+        if (total > 0 && (await Vibration.hasVibrator() ?? false)) {
+          Vibration.vibrate(duration: 40);
         }
       },
     );
@@ -100,14 +121,12 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   Widget build(BuildContext context) {
     final canListen = _available && !_listening;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('الذكر بالصوت'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('الذكر بالصوت'), centerTitle: true),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            // 🔹 Dropdown for choosing dhikr phrase
             Row(
               children: [
                 const Text('اختر الذكر:', style: TextStyle(fontSize: 16)),
@@ -128,6 +147,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
             ),
             const SizedBox(height: 20),
 
+            // 🔹 Counter display
             Card(
               elevation: 2,
               child: Padding(
@@ -135,19 +155,26 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
                 child: Column(
                   children: [
                     const Text('العدد الحالي', style: TextStyle(fontSize: 18)),
-                    Text('$_count',
-                        style: const TextStyle(
-                            fontSize: 40, fontWeight: FontWeight.bold)),
+                    Text(
+                      '$_count',
+                      style: const TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 12),
-                    Text('آخر مسموع: $_lastHeard',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.grey)),
+                    Text(
+                      'آخر مسموع: $_lastHeard',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
                   ],
                 ),
               ),
             ),
             const Spacer(),
 
+            // 🔹 Start/Stop buttons
             Row(
               children: [
                 Expanded(
@@ -168,9 +195,13 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
               ],
             ),
             const SizedBox(height: 8),
+
+            // 🔹 Status text
             Text(
               _available
-                  ? (_listening ? '🎧 يستمع الآن بشكل مستمر...' : '✅ جاهز للاستماع')
+                  ? (_listening
+                      ? '🎧 يستمع الآن بشكل مستمر...'
+                      : '✅ جاهز للاستماع')
                   : '⚠️ التعرّف على الكلام غير متاح على هذا الجهاز',
               style: const TextStyle(color: Colors.teal),
             ),
