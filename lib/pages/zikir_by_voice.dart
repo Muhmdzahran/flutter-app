@@ -21,11 +21,13 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   late stt.SpeechToText _stt;
   bool _available = false;
   bool _listening = false;
-  String _spokenText = ''; // The latest recognized words
+  String _spokenText = ''; // The latest full recognized text
 
   // --- Zikr/Counter State ---
   String _selectedZikr = _adhkar.keys.first; // Currently selected Zikr from the dropdown
-  int _zikrCount = 0; // The counter for the selected Zikr
+  int _zikrCount = 0; // The primary counter (1 + 1 + 1)
+  String _lastCountedPhrase = ''; // Tracks the last phrase that caused an increment to prevent double-counting
+  int _textOccurrenceCount = 0; // How many times the Zikr appears in the full recognized text ("Ctrl+F" count)
 
   @override
   void initState() {
@@ -33,7 +35,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
     _initStt();
   }
 
-  // --- STT Initialization and Control Methods (Kept the same) ---
+  // --- STT Initialization and Control Methods ---
 
   Future<void> _initStt() async {
     _stt = stt.SpeechToText();
@@ -59,45 +61,53 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   }
 
   Future<void> _startListening() async {
-    if (!_available) return;
+  if (!_available) return;
 
-    // Arabic locales preferred
-    const arLocales = ['ar-QA', 'ar-SA', 'ar', 'ar-AE', 'ar-EG', 'ar-LB'];
-    String? chosen;
-    final locales = await _stt.locales();
-    for (final l in locales) {
-      if (arLocales.contains(l.localeId)) {
-        chosen = l.localeId;
-        break;
-      }
+  // Arabic locales preferred (adjust if needed for your specific region)
+  const arLocales = ['ar-QA', 'ar-SA', 'ar', 'ar-AE', 'ar-EG', 'ar-LB'];
+  String? chosen;
+  final locales = await _stt.locales();
+  for (final l in locales) {
+    if (arLocales.contains(l.localeId)) {
+      chosen = l.localeId;
+      break;
     }
-
-    setState(() {
-      _spokenText = '';
-      _listening = true;
-    });
-
-    await _stt.listen(
-      localeId: chosen,
-      listenMode: stt.ListenMode.dictation,
-      partialResults: true,
-      cancelOnError: false,
-      listenFor: const Duration(hours: 1), // 🕐 one full hour
-      pauseFor: const Duration(minutes: 5), // long silence tolerance
-      onResult: (res) {
-        final recognizedWords = res.recognizedWords.trim();
-        setState(() {
-          _spokenText = recognizedWords;
-          // 💡 **New Logic: Check and Count Zikr**
-          if (recognizedWords.contains(_selectedZikr)) {
-            // Simple check: if the recognized text *contains* the selected zikr.
-            // This handles cases where there's slight noise or extra words.
-            _zikrCount++;
-          }
-        });
-      },
-    );
   }
+
+  setState(() {
+    _spokenText = '';
+    _listening = true;
+    // _lastCountedPhrase is no longer needed but is reset for safety
+    _lastCountedPhrase = ''; 
+    _textOccurrenceCount = 0; 
+  });
+
+  await _stt.listen(
+    localeId: chosen,
+    listenMode: stt.ListenMode.dictation,
+    partialResults: true,
+    cancelOnError: false,
+    listenFor: const Duration(hours: 1), // Long listening duration
+    pauseFor: const Duration(minutes: 5), // Long silence tolerance
+    onResult: (res) {
+      final recognizedWords = res.recognizedWords.trim();
+      setState(() {
+        _spokenText = recognizedWords;
+        
+        // 🛑 UPDATED LOGIC: 
+        // Assign the total number of times the selected Zikr appears in the text
+        // directly to the primary counter (_zikrCount).
+        _zikrCount = _countOccurrences(recognizedWords, _selectedZikr);
+        
+        // Keep _textOccurrenceCount synchronized for display purposes
+        _textOccurrenceCount = _zikrCount;
+        
+        // Note: The original 1+1+1 logic involving _lastCountedPhrase 
+        // has been removed entirely from this callback.
+      });
+    },
+  );
+}
 
   Future<void> _stopListening() async {
     setState(() => _listening = false);
@@ -112,9 +122,28 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
 
   // --- Zikr/Counter Methods ---
 
+  // Helper function to count non-overlapping occurrences of a substring
+  int _countOccurrences(String text, String target) {
+    if (target.isEmpty) return 0;
+    int count = 0;
+    int index = 0;
+    
+    // Convert to lowercase or normalize if needed, but Arabic should be fine without
+    while (true) {
+      index = text.indexOf(target, index);
+      if (index == -1) break;
+      count++;
+      index += target.length; // Move the index past the found word
+    }
+    return count;
+  }
+
   void _resetCount() {
     setState(() {
       _zikrCount = 0;
+      _lastCountedPhrase = ''; 
+      _textOccurrenceCount = 0;
+      _spokenText = '';
     });
   }
 
@@ -123,7 +152,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('الذكر بالصوت (مستمر) 🎤')),
+      appBar: AppBar(title: const Text('الذكر بالصوت والمُسبحة الرقمية 🎤')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -156,14 +185,14 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
                               if (newValue != null) {
                                 setState(() {
                                   _selectedZikr = newValue;
-                                  _zikrCount = 0; // Reset count on Zikr change
+                                  _resetCount(); // Use the reset function
                                 });
                               }
                             },
                     ),
                     const SizedBox(height: 15),
 
-                    // Counter Display
+                    // Counter Display (Primary)
                     Center(
                       child: Text(
                         'العدد: $_zikrCount',
@@ -208,9 +237,9 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
               ],
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
 
-            // 3. Status
+            // 3. Status and "Ctrl+F" Count
             Text(
               _available
                   ? (_listening
@@ -221,9 +250,18 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
               textAlign: TextAlign.center,
               textDirection: TextDirection.rtl,
             ),
-            const SizedBox(height: 20),
+            
+            // Occurrence Counter Display ("Ctrl+F" style)
+            if (_listening) 
+              Text(
+                'معدل الظهور في النص الحالي: **$_textOccurrenceCount** مرة',
+                style: const TextStyle(color: Colors.purple, fontSize: 14, fontWeight: FontWeight.bold),
+                textDirection: TextDirection.rtl,
+              ),
 
-            // 4. Recognized Text
+            const SizedBox(height: 10),
+
+            // 4. Recognized Text Display
             Expanded(
               child: Container(
                 width: double.infinity,
