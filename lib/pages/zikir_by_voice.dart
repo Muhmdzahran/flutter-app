@@ -6,7 +6,7 @@ const Map<String, String> _adhkar = {
   'سبحان الله': 'سبحان الله',
   'الحمد لله': 'الحمد لله',
   'الله أكبر': 'الله أكبر',
-  'أستغفر الله': 'أستغفر الله',
+  'استغفر الله': 'استغفر الله',
   'لا إله إلا الله': 'لا إله إلا الله',
 };
 
@@ -89,7 +89,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
     partialResults: true,
     cancelOnError: false,
     listenFor: const Duration(hours: 1), // Long listening duration
-    pauseFor: const Duration(minutes: 5), // Long silence tolerance
+    pauseFor: const Duration(minutes: 15), // Long silence tolerance
     onResult: (res) {
       final recognizedWords = res.recognizedWords.trim();
       setState(() {
