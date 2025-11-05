@@ -124,20 +124,36 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   // --- Zikr/Counter Methods ---
 
   // Helper function to count non-overlapping occurrences of a substring
-  int _countOccurrences(String text, String target) {
-    if (target.isEmpty) return 0;
-    int count = 0;
-    int index = 0;
-    
-    // Convert to lowercase or normalize if needed, but Arabic should be fine without
-    while (true) {
-      index = text.indexOf(target, index);
-      if (index == -1) break;
-      count++;
-      index += target.length; // Move the index past the found word
-    }
-    return count;
+  // --- Zikr/Counter Methods ---
+
+// Helper function to count non-overlapping occurrences of a substring
+int _countOccurrences(String text, String target) {
+  if (target.isEmpty) return 0;
+  
+  // 💡 NORMALIZATION FUNCTION
+  // Ensures consistent character matching regardless of Hamza or Taa Marbuta variants.
+  String normalize(String s) {
+    return s
+        // 1. Consolidates all Hamza/Madda variants (أ, إ, آ) to a simple Alif (ا)
+        .replaceAll(RegExp(r'[أ]'), 'ا'); 
   }
+
+  // Apply normalization to both strings before comparison
+  final normalizedText = normalize(text);
+  final normalizedTarget = normalize(target);
+  
+  int count = 0;
+  int index = 0;
+  
+  // Search using the normalized strings
+  while (true) {
+    index = normalizedText.indexOf(normalizedTarget, index); 
+    if (index == -1) break;
+    count++;
+    index += normalizedTarget.length;
+  }
+  return count;
+}
 
   void _resetCount() {
     setState(() {
