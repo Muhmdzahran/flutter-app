@@ -8,7 +8,7 @@
 
     <application
         android:name="${applicationName}"
-        android:label="TapIt"
+        android:label="Zikir AI"
         android:icon="@mipmap/ic_launcher">
 
         <!-- 🚀 Main Activity -->
