@@ -2,7 +2,7 @@ name: TapIt
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.0.4+7
+version: 1.0.4+8
 
 environment:
   sdk: ^3.9.2
@@ -35,4 +35,4 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icon.png"
+  image_path: "assets/zikiricon.png"
