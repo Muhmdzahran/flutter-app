@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'pages/tasbih_page.dart';
 import 'pages/qibla_compass.dart';
 import 'pages/zikir_by_voice.dart';
+import 'pages/NotificationSettingsPage.dart';
+import 'services/notification_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService().init();
   runApp(const TapItApp());
 }
 
@@ -38,14 +42,15 @@ class _HomeNavigationState extends State<HomeNavigation> {
   final List<Widget> _pages = [
     const TasbihPage(),
     const QiblaCompass(),
-    const ZikirByVoicePage(), 
+    const ZikirByVoicePage(),
+    const NotificationSettingsPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _pages[_selectedIndex],
-            bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.teal,
         unselectedItemColor: Colors.grey,
@@ -55,17 +60,17 @@ class _HomeNavigationState extends State<HomeNavigation> {
             icon: Icon(Icons.fingerprint),
             label: 'Tasbih',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.explore),
-            label: 'Qibla',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Qibla'),
           BottomNavigationBarItem(
             icon: Icon(Icons.mic),
             label: 'Zikir by Voice',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Reminders',
+          ),
         ],
       ),
-
     );
   }
 }
