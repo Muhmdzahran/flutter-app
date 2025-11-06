@@ -8,7 +8,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
-    // 1. Initialize Timezone data
+    // 1. Initialize Timezone data (needed for scheduling)
     tzdata.initializeTimeZones();
 
     const AndroidInitializationSettings initializationSettingsAndroid =
@@ -34,22 +34,20 @@ class NotificationService {
     );
   }
 
-  // 💡 [FIX] Method to cancel all scheduled notifications
+  /// Cancels all currently scheduled and pending notifications.
   Future<void> cancelAllNotifications() async {
     await flutterLocalNotificationsPlugin.cancelAll();
     debugPrint('All notifications cancelled.');
   }
 
-
-  // 💡 [REFACTOR] Scheduling function now accepts specific hour and minute
+  /// Schedules a daily repeating notification at the specified hour and minute.
   Future<void> scheduleDailyNotification({
-    required int hour, 
-    required int minute, 
+    required int hour,
+    required int minute,
   }) async {
-    // Get the local timezone (important for accurate scheduling)
     final location = tz.local;
     
-    // Set the target time using the passed parameters
+    // Set the target time for today
     var scheduledDate = tz.TZDateTime(
       location,
       tz.TZDateTime.now(location).year,
@@ -83,8 +81,33 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time, // Repeats daily
+      matchDateTimeComponents: DateTimeComponents.time, // Key for daily repeat
     );
     debugPrint('Daily notification scheduled for $hour:$minute.');
   }
+
+  /// Shows an immediate, non-scheduled notification for testing purposes.
+  Future<void> showTestNotification() async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'test_channel_id',
+      'Test Notification Channel',
+      channelDescription: 'Channel for immediate test notifications.',
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+    );
+    
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      99, // Unique ID
+      'تذكير فوري (اختبار) 🚀',
+      'هذا اختبار لكي تتأكد من عمل التذكيرات بنجاح.',
+      platformDetails,
+      payload: 'test_payload',
+    );
+    debugPrint('Test notification fired.');
+}
 }
