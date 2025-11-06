@@ -5,7 +5,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 const Map<String, String> _adhkar = {
   'سبحان الله': 'سبحان الله',
   'الحمد لله': 'الحمد لله',
-  'الله أكبر': 'الله أكبر',
+  'الله اكبر': 'الله اكبر',
   'استغفر الله': 'استغفر الله',
   'لا إله إلا الله': 'لا إله إلا الله',
 };
@@ -26,8 +26,8 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
 
   // --- Zikr/Counter State ---
   String _selectedZikr = _adhkar.keys.first; // Currently selected Zikr from the dropdown
-  int _zikrCount = 0; // The primary counter (1 + 1 + 1)
-  String _lastCountedPhrase = ''; // Tracks the last phrase that caused an increment to prevent double-counting
+  int _zikrCount = 0; // The primary counter
+  // 💡 [FIX] Removed unused field: String _lastCountedPhrase = ''; 
   int _textOccurrenceCount = 0; // How many times the Zikr appears in the full recognized text ("Ctrl+F" count)
 
   @override
@@ -78,33 +78,26 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   setState(() {
     _spokenText = '';
     _listening = true;
-    // _lastCountedPhrase is no longer needed but is reset for safety
-    _lastCountedPhrase = ''; 
+    // 💡 [FIX] Removed redundant reset for the unused field
     _textOccurrenceCount = 0; 
   });
 
   await _stt.listen(
     localeId: chosen,
-    listenMode: stt.ListenMode.dictation,
-    partialResults: true,
-    cancelOnError: false,
     listenFor: const Duration(hours: 1), // Long listening duration
     pauseFor: const Duration(minutes: 15), // Long silence tolerance
+    // 💡 [FIX] Replaced deprecated parameters with SpeechListenOptions
+    listenOptions: stt.SpeechListenOptions(
+      listenMode: stt.ListenMode.dictation,
+      partialResults: true,
+      cancelOnError: false,
+    ),
     onResult: (res) {
       final recognizedWords = res.recognizedWords.trim();
       setState(() {
         _spokenText = recognizedWords;
-        
-        // 🛑 UPDATED LOGIC: 
-        // Assign the total number of times the selected Zikr appears in the text
-        // directly to the primary counter (_zikrCount).
         _zikrCount = _countOccurrences(recognizedWords, _selectedZikr);
-        
-        // Keep _textOccurrenceCount synchronized for display purposes
         _textOccurrenceCount = _zikrCount;
-        
-        // Note: The original 1+1+1 logic involving _lastCountedPhrase 
-        // has been removed entirely from this callback.
       });
     },
   );
@@ -123,18 +116,14 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
 
   // --- Zikr/Counter Methods ---
 
-  // Helper function to count non-overlapping occurrences of a substring
-  // --- Zikr/Counter Methods ---
-
 // Helper function to count non-overlapping occurrences of a substring
 int _countOccurrences(String text, String target) {
   if (target.isEmpty) return 0;
   
   // 💡 NORMALIZATION FUNCTION
-  // Ensures consistent character matching regardless of Hamza or Taa Marbuta variants.
   String normalize(String s) {
     return s
-        // 1. Consolidates all Hamza/Madda variants (أ, إ, آ) to a simple Alif (ا)
+        // 1. Consolidates 'أ' to a simple Alif (ا)
         .replaceAll(RegExp(r'[أ]'), 'ا'); 
   }
 
@@ -158,7 +147,7 @@ int _countOccurrences(String text, String target) {
   void _resetCount() {
     setState(() {
       _zikrCount = 0;
-      _lastCountedPhrase = ''; 
+      // 💡 [FIX] Removed redundant reset for the unused field
       _textOccurrenceCount = 0;
       _spokenText = '';
     });
@@ -189,7 +178,8 @@ int _countOccurrences(String text, String target) {
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       ),
-                      value: _selectedZikr,
+                      // 💡 [FIX] Replaced deprecated 'value' with 'initialValue'
+                      initialValue: _selectedZikr,
                       items: _adhkar.keys
                           .map((String zikr) => DropdownMenuItem<String>(
                                 value: zikr,
@@ -260,7 +250,7 @@ int _countOccurrences(String text, String target) {
             Text(
               _available
                   ? (_listening
-                      ? '🎧 يستمع الآن... قل "${_selectedZikr}"'
+                      ? '🎧 يستمع الآن... قل "$_selectedZikr"'
                       : '✅ جاهز. الذكر الحالي: $_selectedZikr')
                   : '⚠️ التعرّف على الكلام غير متاح على هذا الجهاز',
               style: const TextStyle(color: Colors.teal, fontSize: 16),
