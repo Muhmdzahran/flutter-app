@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'pages/tasbih_page.dart';
 import 'pages/qibla_compass.dart';
 import 'pages/zikir_by_voice.dart';
-import 'pages/NotificationSettingsPage.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -43,7 +42,6 @@ class _HomeNavigationState extends State<HomeNavigation> {
     const TasbihPage(),
     const QiblaCompass(),
     const ZikirByVoicePage(),
-    const NotificationSettingsPage(),
   ];
 
   @override
@@ -64,10 +62,6 @@ class _HomeNavigationState extends State<HomeNavigation> {
           BottomNavigationBarItem(
             icon: Icon(Icons.mic),
             label: 'Zikir by Voice',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Reminders',
           ),
         ],
       ),
