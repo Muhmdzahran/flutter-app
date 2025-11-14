@@ -6,7 +6,7 @@ const Map<String, String> _initialAdhkar = {
   'لا حول ولا قوة الا بالله': 'لا حول ولا قوة الا بالله',
   'سبحان الله وبحمده': 'سبحان الله وبحمده',
   'استغفر الله': 'استغفر الله',
-  'اللهم صل وسلم على نبينا محمد': 'اللهم صل وسلم على نبينا محمد',
+'صلى الله على محمد': 'صلى الله على محمد', // New Zikr added
   'الحمد لله': 'الحمد لله',
   'سبحان الله وبحمده سبحان الله العظيم': 'سبحان الله وبحمده سبحان الله العظيم',
   'سبحان الله': 'سبحان الله',
@@ -136,7 +136,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
       // Consolidate Hamza variations (أ, آ, إ, ئ, ؤ) to a simple Alif (ا)
       s = s.replaceAll(RegExp(r'[أآإئؤ]'), 'ا');
       // Normalize Alif Maqsura (ى) to Ya' (ي)
-      s = s.replaceAll('ى', 'ي');
+
       return s;
     }
 
