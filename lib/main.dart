@@ -55,14 +55,15 @@ class _HomeNavigationState extends State<HomeNavigation> {
         onTap: (index) => setState(() => _selectedIndex = index),
         items: const [
           BottomNavigationBarItem(
+            icon: Icon(Icons.mic),
+            label: 'Zikir by Voice',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.fingerprint),
             label: 'Tasbih',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Qibla'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.mic),
-            label: 'Zikir by Voice',
-          ),
+          
         ],
       ),
     );
