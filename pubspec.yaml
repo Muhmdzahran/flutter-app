@@ -2,7 +2,7 @@ name: zikirai
 description: "A new Flutter project."
 publish_to: 'none'
 
-version: 1.2.2+3
+version: 1.2.2+4
 
 environment:
   sdk: ^3.9.2
