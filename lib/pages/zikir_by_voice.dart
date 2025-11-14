@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
-// Initial constant map for available Zikr phrases
+// 💡 [UPDATE] The new, comprehensive list of Zikr phrases
 const Map<String, String> _initialAdhkar = {
-  'سبحان الله': 'سبحان الله',
-  'الحمد لله': 'الحمد لله',
-  'الله اكبر': 'الله اكبر',
+  'لا حول ولا قوة الا بالله': 'لا حول ولا قوة الا بالله',
+  'سبحان الله وبحمده': 'سبحان الله وبحمده',
   'استغفر الله': 'استغفر الله',
-  'لا إله إلا الله': 'لا إله إلا الله',
+  'اللهم صل وسلم على نبينا محمد': 'اللهم صل وسلم على نبينا محمد',
+  'الحمد لله': 'الحمد لله',
+  'سبحان الله وبحمده سبحان الله العظيم': 'سبحان الله وبحمده سبحان الله العظيم',
+  'سبحان الله': 'سبحان الله',
+  'سبحان الله العظيم': 'سبحان الله العظيم',
+  'لا اله الا الله': 'لا اله الا الله',
+  'الله اكبر': 'الله اكبر',
 };
 
 class ZikirByVoicePage extends StatefulWidget {
@@ -25,18 +30,16 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   String _spokenText = '';
 
   // --- Zikr/Counter State ---
-  // 💡 [CHANGE] Make this list mutable by moving it into the State
-  Map<String, String> _adhkar = Map.from(_initialAdhkar);
-  String _selectedZikr = _initialAdhkar.keys.first;
+  final Map<String, String> _adhkar = Map.from(_initialAdhkar);
+  late String _selectedZikr;
   int _zikrCount = 0;
   int _processedTextLength = 0;
   int _textOccurrenceCount = 0;
 
-  final _customZikrController = TextEditingController();
-
   @override
   void initState() {
     super.initState();
+    _selectedZikr = _initialAdhkar.keys.first;
     _initStt();
   }
 
@@ -119,32 +122,70 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
   @override
   void dispose() {
     _stt.cancel();
-    _customZikrController.dispose();
     super.dispose();
   }
 
-  // --- Zikr/Counter Methods (Logic Unchanged) ---
+  // --- Zikr/Counter Methods ---
 
+  // 💡 [REVISED] Helper function with enhanced normalization for common STT errors (صل/صلي, Hamza)
   int _countOccurrences(String text, String target) {
     if (target.isEmpty) return 0;
 
+    // 1. Core Normalization Function (Hamza/Alif Maqsura)
     String normalize(String s) {
-      return s.replaceAll(RegExp(r'[أ]'), 'ا');
+      // Consolidate Hamza variations (أ, آ, إ, ئ, ؤ) to a simple Alif (ا)
+      s = s.replaceAll(RegExp(r'[أآإئؤ]'), 'ا');
+      // Normalize Alif Maqsura (ى) to Ya' (ي)
+      s = s.replaceAll('ى', 'ي');
+      return s;
     }
 
+    // 2. Define the set of normalized target strings to check against
+    List<String> normalizedTargets = [];
+    String baseTarget = normalize(target);
+    normalizedTargets.add(baseTarget);
+
+    // Add common STT error variations (e.g., صل <-> صلي)
+    if (baseTarget.endsWith('ل') && baseTarget.length > 1) {
+      // If target is 'صل', add 'صلي'
+      normalizedTargets.add(baseTarget + 'ي');
+    } else if (baseTarget.endsWith('ي') && baseTarget.length > 1) {
+      // If target is 'صلي', add 'صل'
+      normalizedTargets.add(baseTarget.substring(0, baseTarget.length - 1));
+    }
+    
+    // Add variations for 'الا' / 'إلا'
+    if (baseTarget.contains('ا للّه')) {
+        normalizedTargets.add(baseTarget.replaceAll('ا للّه', 'ا للّه'));
+    }
+
+    // 3. Normalize the recognized text once
     final normalizedText = normalize(text);
-    final normalizedTarget = normalize(target);
 
-    int count = 0;
-    int index = 0;
+    int totalCount = 0;
+    
+    // 4. Iterate over all valid targets and count occurrences
+    for (final normalizedTarget in normalizedTargets) {
+      if (normalizedTarget.isEmpty) continue;
 
-    while (true) {
-      index = normalizedText.indexOf(normalizedTarget, index);
-      if (index == -1) break;
-      count++;
-      index += normalizedTarget.length;
+      int count = 0;
+      int index = 0;
+
+      while (true) {
+        index = normalizedText.indexOf(normalizedTarget, index);
+        if (index == -1) break;
+        count++;
+        index += normalizedTarget.length;
+      }
+      
+      // If we found a match for any variation, use that count and stop.
+      if (count > 0) {
+          totalCount = count;
+          break;
+      }
     }
-    return count;
+    
+    return totalCount;
   }
 
   void _resetCount() {
@@ -156,65 +197,23 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
     });
   }
 
-  // 💡 [NEW METHOD] for adding custom Zikr
-  void _addCustomZikr(String zikr) {
-    final trimmedZikr = zikr.trim();
-    if (trimmedZikr.isNotEmpty && !_adhkar.containsKey(trimmedZikr)) {
-      setState(() {
-        _adhkar[trimmedZikr] = trimmedZikr;
-        _selectedZikr = trimmedZikr;
-        _resetCount();
-      });
-    }
+  void _selectZikr(String zikr) {
+    if (_listening) return; // Cannot change while listening
+    setState(() {
+      _selectedZikr = zikr;
+      _resetCount();
+    });
   }
 
-  // 💡 [NEW WIDGET] to show the Add Custom Zikr Dialog
-  void _showAddCustomZikrDialog(BuildContext context) {
-    _customZikrController.clear();
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            title: const Text('إضافة ذكر مخصص'),
-            content: TextField(
-              controller: _customZikrController,
-              decoration: const InputDecoration(
-                labelText: 'الذكر الذي تريد إضافته (مثلاً: لا حول ولا قوة إلا بالله)',
-                border: OutlineInputBorder(),
-              ),
-              textAlign: TextAlign.right,
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('إلغاء'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              ElevatedButton(
-                child: const Text('إضافة'),
-                onPressed: () {
-                  if (_customZikrController.text.isNotEmpty) {
-                    _addCustomZikr(_customZikrController.text);
-                    Navigator.of(context).pop();
-                  }
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  // --- Widget Build (UI Improvements) ---
+  // --- Widget Builders (UI) ---
 
   Widget _buildCounterDisplay(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
       decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor,
+        color: theme.colorScheme.primary, // Use theme color
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -249,6 +248,72 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
     );
   }
 
+  Widget _buildZikrCatalog() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'اختر الذكر من القائمة:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          textDirection: TextDirection.rtl,
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 80, // Fixed height for the horizontal list
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            reverse: true, // RTL scrolling
+            itemCount: _adhkar.length,
+            itemBuilder: (context, index) {
+              final zikr = _adhkar.keys.elementAt(index);
+              final isSelected = zikr == _selectedZikr;
+              final theme = Theme.of(context);
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                child: GestureDetector(
+                  onTap: _listening ? null : () => _selectZikr(zikr),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? theme.colorScheme.primary : theme.cardColor,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(
+                        color: isSelected ? theme.colorScheme.primary : Colors.grey.shade300,
+                        width: isSelected ? 2 : 1,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: theme.colorScheme.primary.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
+                          : null,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      zikr,
+                      textDirection: TextDirection.rtl,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? Colors.white
+                            : (theme.brightness == Brightness.dark ? Colors.white : Colors.black87),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -258,7 +323,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
       appBar: AppBar(
         title: const Text('المسبحة الصوتية 🎤'),
         centerTitle: true,
-        backgroundColor: theme.primaryColor,
+        backgroundColor: theme.colorScheme.primary,
         foregroundColor: Colors.white,
       ),
       body: Directionality(
@@ -268,93 +333,73 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Main Counter Display
+              // 1. Zikr Catalog (Horizontal Row)
+              _buildZikrCatalog(),
+
+              const SizedBox(height: 20),
+              
+              // 2. Main Counter Display
               _buildCounterDisplay(context),
 
               const SizedBox(height: 20),
 
-              // 2. Zikr Selection and Controls
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                child: Padding(
-                  padding: const EdgeInsets.all(15.0),
-                  child: Column(
-                    children: [
-                      // Dropdown for Zikr Selection
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(
-                          labelText: 'اختر الذكر',
-                          border: const OutlineInputBorder(),
-                          enabled: !_listening,
-                          labelStyle: TextStyle(color: _listening ? Colors.grey : theme.primaryColor),
-                        ),
-                        value: _selectedZikr, // Use 'value' instead of 'initialValue' when managed by state
-                        items: _adhkar.keys
-                            .map((String zikr) => DropdownMenuItem<String>(
-                                  value: zikr,
-                                  child: Text(zikr, style: const TextStyle(fontSize: 18)),
-                                ))
-                            .toList(),
-                        onChanged: _listening
-                            ? null
-                            : (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() {
-                                    _selectedZikr = newValue;
-                                    _resetCount();
-                                  });
-                                }
-                              },
+              // 3. Control Buttons and Reset
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.mic, color: Colors.white),
+                      label: const Text('ابدأ الاستماع', style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 5,
                       ),
-                      const SizedBox(height: 15),
-
-                      // Row for Add Custom Zikr and Reset Button
-                      Row(
-                        children: [
-                          // 💡 [NEW BUTTON] Add Custom Zikr
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.add_circle_outline),
-                              label: const Text('إضافة ذكر'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.teal,
-                                side: const BorderSide(color: Colors.teal),
-                              ),
-                              onPressed: _listening ? null : () => _showAddCustomZikrDialog(context),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          // Reset Button
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              icon: const Icon(Icons.refresh),
-                              label: const Text('تصفير'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
-                              ),
-                              onPressed: _resetCount,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      onPressed: _available && !_listening ? _startListening : null,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.stop, color: Colors.white),
+                      label: const Text('إيقاف', style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red.shade600,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 5,
+                      ),
+                      onPressed: _listening ? _stopListening : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Reset Button
+                  SizedBox(
+                    width: 50,
+                    height: 50,
+                    child: IconButton.filled(
+                      icon: const Icon(Icons.refresh),
+                      color: Colors.white,
+                      style: IconButton.styleFrom(
+                        backgroundColor: theme.colorScheme.tertiary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: _resetCount,
+                    ),
+                  ),
+                ],
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
 
-              // 3. Status and Control Buttons
+              // 4. Status and Selected Zikr
               Container(
-                padding: const EdgeInsets.all(15),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: _listening ? Colors.green.shade50 : Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(15),
-                  border: Border.all(
-                    color: _listening ? Colors.green.shade200 : Colors.blue.shade200,
-                  ),
                 ),
                 child: Column(
                   children: [
@@ -362,7 +407,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
                       _available
                           ? (_listening
                               ? '🎧 يستمع الآن... قل: **$_selectedZikr**'
-                              : '✅ جاهز. الذكر الحالي: **$_selectedZikr**')
+                              : '✅ جاهز. الذكر المحدد: **$_selectedZikr**')
                           : '⚠️ التعرّف على الكلام غير متاح على هذا الجهاز',
                       style: TextStyle(
                         color: _listening ? Colors.green.shade700 : Colors.blue.shade700,
@@ -371,45 +416,25 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.mic, color: Colors.white),
-                            label: const Text('ابدأ الاستماع', style: TextStyle(color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              elevation: 5,
-                            ),
-                            onPressed: _available && !_listening ? _startListening : null,
+                    if (_listening)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          'إجمالي العد حتى الآن: **$_textOccurrenceCount**',
+                          style: TextStyle(
+                            color: theme.colorScheme.secondary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            icon: const Icon(Icons.stop, color: Colors.white),
-                            label: const Text('إيقاف', style: TextStyle(color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red.shade600,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              elevation: 5,
-                            ),
-                            onPressed: _listening ? _stopListening : null,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
                   ],
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // 4. Recognized Text Display
+              // 5. Recognized Text Display
               Text(
                 'النص المُتعرّف عليه:',
                 style: theme.textTheme.titleMedium,
@@ -437,17 +462,6 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
-
-              if (_listening)
-                Text(
-                  'إجمالي مرات ظهور الذكر في النص الحالي: **$_textOccurrenceCount**',
-                  style: TextStyle(
-                    color: theme.colorScheme.secondary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
             ],
           ),
         ),
