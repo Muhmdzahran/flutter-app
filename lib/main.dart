@@ -39,9 +39,9 @@ class _HomeNavigationState extends State<HomeNavigation> {
 
   // ✅ Tabs (Pages)
   final List<Widget> _pages = [
+    const ZikirByVoicePage(),
     const TasbihPage(),
     const QiblaCompass(),
-    const ZikirByVoicePage(),
   ];
 
   @override

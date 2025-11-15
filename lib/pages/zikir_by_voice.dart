@@ -321,7 +321,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('المسبحة الصوتية 🎤'),
+        title: const Text('المسبحة الصوتية'),
         centerTitle: true,
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: Colors.white,
@@ -432,7 +432,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+             /* const SizedBox(height: 20),
 
               // 5. Recognized Text Display
               Text(
@@ -461,7 +461,7 @@ class _ZikirByVoicePageState extends State<ZikirByVoicePage> {
                     ),
                   ),
                 ),
-              ),
+              ),*/
             ],
           ),
         ),
